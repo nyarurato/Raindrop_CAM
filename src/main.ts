@@ -2,5 +2,6 @@ import { createApp } from "vue";
 import App from "./App.vue";
 import "./registerServiceWorker";
 import router from "./router";
+import vuetify from "./plugins/vuetify";
 
-createApp(App).use(router).mount("#app");
+createApp(App).use(router).use(vuetify).mount("#app");

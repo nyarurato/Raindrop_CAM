@@ -14,9 +14,9 @@
     <TresAxesHelper />
     <TresGridHelper :args="[100, 100, 0x444444, 'teal']" />
   </TresCanvas>
-  <button @click="modelmaker.downloadModelAsSTL(mesh, 'aaa')">
+  <v-btn @click="modelmaker.downloadModelAsSTL(mesh, 'aaa')">
     Save as STL
-  </button>
+  </v-btn>
 </template>
 
 <style scoped>

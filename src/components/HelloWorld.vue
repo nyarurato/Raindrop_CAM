@@ -1,6 +1,5 @@
 <template>
   <div class="hello">
-    <h1>MarkoSimpleCAM</h1>
     <div class="view">
       <TestView />
     </div>
@@ -20,6 +19,5 @@ const props = defineProps({
 .view {
   margin: auto;
   height: 70vh;
-  width: 70vw;
 }
 </style>
