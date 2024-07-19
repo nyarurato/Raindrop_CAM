@@ -1,7 +1,10 @@
 import { createApp } from "vue";
 import App from "./App.vue";
-import "./registerServiceWorker";
-import router from "./router";
+//import "./registerServiceWorker";
+//import router from "./router";
 import vuetify from "./plugins/vuetify";
+import { loadFonts } from "./plugins/webfontloader";
 
-createApp(App).use(router).use(vuetify).mount("#app");
+loadFonts();
+
+createApp(App).use(vuetify).mount("#app");

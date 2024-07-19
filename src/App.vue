@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-main>
-      <router-view />
+      <MainView />
     </v-main>
   </v-app>
 </template>
@@ -28,3 +28,8 @@ nav {
   }
 }
 </style>
+
+<script lang="ts" setup>
+import { defineComponent } from "vue";
+import MainView from "./views/MainView.vue";
+</script>

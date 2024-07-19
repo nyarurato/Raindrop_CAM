@@ -2,7 +2,7 @@
   "name": "marko_simple_cam",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://nyarurato.github.io/marko_simple_cam/",
+  "homepage": "https://nyarurato.github.io/4axis_simple_cam",
   "scripts": {
     "serve": "vite preview",
     "build": "vite build",
@@ -13,17 +13,18 @@
   "dependencies": {
     "@mdi/font": "^7.4.47",
     "@tresjs/cientos": "^3.7.0",
-    "@tresjs/core": "^3.6.1",
+    "@tresjs/core": "^3.7.0",
     "@types/three": "^0.160.0",
     "@vitejs/plugin-vue": "^5.0.3",
     "core-js": "^3.8.3",
     "register-service-worker": "^1.7.2",
-    "three": "^0.160.0",
+    "three": "^0.160.1",
     "tweakpane": "^4.0.3",
     "vite": "^5.0.12",
+    "vite-plugin-vuetify": "^1.0.2",
     "vue": "^3.2.13",
-    "vue-router": "^4.0.3",
-    "vuetify": "^3.5.1"
+    "vuetify": "^3.5.1",
+    "webfontloader": "^1.6.28"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.4.0",

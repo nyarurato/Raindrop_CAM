@@ -1,21 +1,21 @@
 <template>
-  <v-card>
-    <v-card-title>{{ title }}</v-card-title>
-    <v-card-text>
-      <!-- Content of the widget goes here -->
-      <slot></slot>
-    </v-card-text>
-    <v-card-actions>
-      <!-- Actions for the widget goes here -->
-      <slot name="actions"></slot>
-    </v-card-actions>
-  </v-card>
+  <v-expansion-panel :title="props.title" :value="props.keyname">
+    <v-expansion-panel-text>
+      <v-card flat>
+        <v-card-text>
+          <!-- Content of the widget goes here -->
+          <slot name="contents"></slot>
+        </v-card-text>
+      </v-card>
+    </v-expansion-panel-text>
+  </v-expansion-panel>
 </template>
 
 <script lang="ts" setup>
-import { defineComponent } from "vue";
+import { defineComponent, ref } from "vue";
 
 const props = defineProps<{
   title: string;
+  keyname: string;
 }>();
 </script>

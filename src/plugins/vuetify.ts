@@ -7,8 +7,6 @@ import * as directives from "vuetify/directives";
 // Vuetify
 import { createVuetify } from "vuetify";
 
-export default createVuetify({
-  components,
-  directives,
-});
+export default createVuetify();
+
 // https://vuetifyjs.com/en/introduction/why-vuetify/#feature-guides
