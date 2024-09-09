@@ -1,7 +1,7 @@
 export const StockType = {
-  None: 0,
+  None: -1,
+  Cylinder: 0,
   RectangularPrism: 1,
-  Cylinder: 2,
 } as const;
 
 type StockType = (typeof StockType)[keyof typeof StockType];
@@ -31,13 +31,8 @@ export class RectangularPrism extends BaseStock {
   l: number;
   radius: number;
 
-  constructor(
-    height: number,
-    radius: number,
-    type: StockType,
-    w: number,
-    l: number
-  ) {
+  constructor(height: number, radius: number, w: number, l: number) {
+    const type = StockType.RectangularPrism;
     super(height, radius, type);
     this.radius = this.calcRadius(w, l);
     this.w = w;
@@ -58,7 +53,8 @@ export class RectangularPrism extends BaseStock {
 }
 
 export class Cylinder extends BaseStock {
-  constructor(height: number, radius: number, type: StockType) {
+  constructor(height: number, radius: number) {
+    const type = StockType.Cylinder;
     super(height, radius, type);
   }
 }

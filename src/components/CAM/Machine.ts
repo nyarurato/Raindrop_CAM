@@ -11,13 +11,21 @@ type AxisType = (typeof AxisType)[keyof typeof AxisType];
 
 export class Axis {
   private _axis_type: AxisType;
-  private _max_limit_position: number;
-  private _min_limit_position: number;
+  private _max_limit_position: number | undefined;
+  private _min_limit_position: number | undefined;
+  AxisName = {
+    [AxisType.X]: "X",
+    [AxisType.Y]: "Y",
+    [AxisType.Z]: "Z",
+    [AxisType.A]: "A",
+    [AxisType.B]: "B",
+    [AxisType.C]: "C",
+  } as const;
 
   constructor(
     axis_type: AxisType,
-    max_limit_position: number,
-    min_limit_position: number
+    max_limit_position?: number,
+    min_limit_position?: number
   ) {
     this._axis_type = axis_type;
     this._max_limit_position = max_limit_position;
@@ -28,37 +36,81 @@ export class Axis {
   get axis_type(): AxisType {
     return this._axis_type;
   }
-  get max_limit_position(): number {
-    return this._max_limit_position;
+  get max_limit_position(): number | null {
+    return this._max_limit_position ?? null;
   }
-  get min_limit_position(): number {
-    return this._min_limit_position;
+  get min_limit_position(): number | null {
+    return this._min_limit_position ?? null;
+  }
+  get name(): string {
+    return this.AxisName[this._axis_type];
   }
 }
 
 export class AxisStructure {
   private _axis: Axis[];
+  private _radius_axis: Axis | undefined;
+  private _height_axis: Axis | undefined;
+  private _angular_axis: Axis | undefined;
 
-  constructor(axis: Axis[]) {
+  constructor(
+    axis: Axis[],
+    radius_axis?: Axis,
+    height_axis?: Axis,
+    angular_axis?: Axis
+  ) {
     this._axis = axis;
+    this._radius_axis = radius_axis;
+    this._height_axis = height_axis;
+    this._angular_axis = angular_axis;
   }
 
   public getAxis(axis_type: AxisType): Axis | undefined {
     return this._axis.find((axis) => axis.axis_type === axis_type);
+  }
+  // Getter methods
+  get axis(): Axis[] {
+    return this._axis;
+  }
+
+  get radius_axis(): Axis | undefined {
+    return this._radius_axis;
+  }
+  set radius_axis(axis: Axis) {
+    this._radius_axis = axis;
+  }
+
+  get height_axis(): Axis | undefined {
+    return this._height_axis;
+  }
+  set height_axis(axis: Axis) {
+    this._height_axis = axis;
+  }
+
+  get angular_axis(): Axis | undefined {
+    return this._angular_axis;
+  }
+  set angular_axis(axis: Axis) {
+    this._angular_axis = axis;
   }
 }
 
 export class Machine {
   private _name: string;
   private _max_feedrate: number;
-  private _max_spindle_speed: number;
+  private _axes: AxisStructure;
 
-  constructor(name: string, max_feedrate: number, max_spindle_speed: number) {
-    this._name = name;
-    this._max_feedrate = max_feedrate;
-    this._max_spindle_speed = max_spindle_speed;
+  constructor(name?: string, max_feedrate?: number) {
+    this._name = name ?? "Machine";
+    this._max_feedrate = max_feedrate ?? 1000;
+    const axes = [
+      new Axis(AxisType.X),
+      new Axis(AxisType.Y),
+      new Axis(AxisType.Z),
+      new Axis(AxisType.B),
+    ];
+    this._axes = new AxisStructure(axes, axes[0], axes[1], axes[3]);
   }
-
   // Getter methods
   get name(): string {
     return this._name;
@@ -76,11 +128,10 @@ export class Machine {
     this._max_feedrate = max_feedrate;
   }
 
-  get max_spindle_speed(): number {
-    return this._max_spindle_speed;
+  get axes(): AxisStructure {
+    return this._axes;
   }
-
-  set max_spindle_speed(max_spindle_speed: number) {
-    this._max_spindle_speed = max_spindle_speed;
+  set axes(axes: AxisStructure) {
+    this._axes = axes;
   }
 }

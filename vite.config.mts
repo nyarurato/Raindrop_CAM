@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import vuetify from "vite-plugin-vuetify";
@@ -19,6 +20,9 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "src"),
     },
+  },
+  test: {
+    include: ["**/*.test.ts", "**/*.test.tsx"],
   },
   /* remove the need to specify .vue files https://vitejs.dev/config/#resolve-extensions
   resolve: {

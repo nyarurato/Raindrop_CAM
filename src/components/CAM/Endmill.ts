@@ -1,6 +1,6 @@
-const EndmillType = {
-  BALL: "Ball",
-  SQUARE: "SQUARE",
+export const EndmillType = {
+  BALL: 0,
+  SQUARE: 1,
 } as const;
 
 export type EndmillType = (typeof EndmillType)[keyof typeof EndmillType];

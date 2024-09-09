@@ -6,17 +6,25 @@ export class Section {
   path: NURBSPath;
   projectionPlane: THREE.Plane;
   origin: THREE.Vector3;
+  name: string;
 
   constructor(
-    origin: THREE.Vector3,
-    path: NURBSPath,
-    projectionPlaneNormalVec: THREE.Vector3 = new THREE.Vector3(0, 0, 1)
+    origin: THREE.Vector3 = new THREE.Vector3(0, 0, 0),
+    path: NURBSPath = new NURBSPath([]),
+    projectionPlaneNormalVec: THREE.Vector3 = new THREE.Vector3(0, 0, 1),
+    name = ""
   ) {
     this.origin = origin;
     this.path = path;
     this.projectionPlane = new THREE.Plane(
       projectionPlaneNormalVec.normalize()
     );
+    if (name === "") {
+      //set random name
+      this.name = "Section_" + Math.random().toString(36).substring(2, 5);
+    } else {
+      this.name = name;
+    }
   }
 
   setProjectionPlane(projectionPlaneNormalVec: THREE.Vector3): void {
