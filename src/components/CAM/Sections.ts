@@ -76,6 +76,14 @@ export class Section {
     console.log("converted", nurbsCurve3D);
     return nurbsCurve3D;
   }
+
+  clone(): Section {
+    return new Section(
+      this.origin.clone(),
+      this.path.clone(),
+      this.projectionPlane.normal.clone()
+    );
+  }
 }
 
 //中心点に対して回転させるようなオブジェクトを生成する

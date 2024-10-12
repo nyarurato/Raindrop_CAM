@@ -1,14 +1,20 @@
 <template>
   <BaseWidget title="加工断面" keyname="ProcessingFigureListWidget">
     <template v-slot:contents>
-      <div>
-        <v-text-field
-          v-model.number="divisionCount"
-          label="分割数"
-          type="number"
-          :onchange="changeSectionNum"
-        ></v-text-field>
-      </div>
+      <v-row>
+        <v-col>
+          <v-text-field
+            v-model.number="divisionCount"
+            label="分割数"
+            type="number"
+            :onchange="changeSectionNum"
+          ></v-text-field>
+        </v-col>
+        <v-col cols="3">
+          <v-btn @click="addSection" class="my-3">追加</v-btn>
+        </v-col>
+      </v-row>
+
       <v-data-table :headers="headers" :items="figureList" items-per-page="5">
         <template v-slot:[`item.selected`]="{ item }">
           <v-icon
@@ -18,26 +24,61 @@
             mdi-checkbox-marked-circle
           </v-icon>
         </template>
+        <template v-slot:[`item.name`]="{ item }">
+          <!--ダブルクリックで名前編集用-->
+          <div @dblclick="item.editing = true" v-if="!item.editing">
+            {{ item.name }}
+          </div>
+          <v-text-field
+            v-else
+            v-model="item.name"
+            @blur="
+              item.editing = false;
+              chageSectionName(item, item.name);
+            "
+            @keyup.enter="
+              item.editing = false;
+              chageSectionName(item, item.name);
+            "
+            density="compact"
+            hide-details
+            class="namechanger"
+          ></v-text-field>
+        </template>
         <template v-slot:[`item.actions`]="{ item }">
-          <v-icon
+          <v-btn
             class="me-1"
             size="small"
             @click="editItem(item)"
-            color="primary"
+            density="compact"
+            icon
+            flat
           >
-            mdi-file-edit
-          </v-icon>
-          <v-icon
+            <v-icon color="primary">mdi-pencil</v-icon>
+            <v-tooltip activator="parent" location="bottom">編集</v-tooltip>
+          </v-btn>
+          <v-btn
             class="me-1"
             size="small"
             @click="duplicateItem(item)"
-            color="success"
+            density="compact"
+            icon
+            flat
           >
-            mdi-content-duplicate
-          </v-icon>
-          <v-icon size="small" @click="deleteItem(item)" color="error">
-            mdi-delete
-          </v-icon>
+            <v-icon color="success">mdi-content-duplicate</v-icon>
+            <v-tooltip activator="parent" location="bottom">複製</v-tooltip>
+          </v-btn>
+          <v-btn
+            size="small"
+            @click="deleteItem(item)"
+            class="me-1"
+            density="compact"
+            icon
+            flat
+          >
+            <v-icon color="error"> mdi-delete </v-icon>
+            <v-tooltip activator="parent" location="bottom">削除</v-tooltip>
+          </v-btn>
         </template>
       </v-data-table>
     </template>
@@ -73,6 +114,7 @@ interface SectionItem {
   index: number;
   name: string;
   instance: Section;
+  editing: boolean;
 }
 
 const figureList = computed(() => {
@@ -82,6 +124,7 @@ const figureList = computed(() => {
       index: i + 1,
       name: Param.sections.value[i].name,
       instance: Param.sections.value[i],
+      editing: false,
     } as SectionItem);
   }
   return list;
@@ -90,31 +133,33 @@ const figureList = computed(() => {
 const toast = useToast();
 
 function addSection() {
-  console.log("addSection");
+  const defaultPath = [
+    new THREE.Vector2(
+      Param.stocks.value[Param.selectedStockIndex.value].radius / 2,
+      0
+    ),
+    new THREE.Vector2(
+      Param.stocks.value[Param.selectedStockIndex.value].radius / 2,
+      Param.stocks.value[Param.selectedStockIndex.value].height / 2
+    ),
+    new THREE.Vector2(
+      Param.stocks.value[Param.selectedStockIndex.value].radius / 2,
+      Param.stocks.value[Param.selectedStockIndex.value].height
+    ),
+  ];
+  Param.sections.value.push(
+    new Section(new THREE.Vector3(0, 0, 0), new NURBSPath(defaultPath))
+  );
+  divisionCount.value = Param.sections.value.length;
 }
 
 function changeSectionNum() {
   if (divisionCount.value < Param.sections.value.length) {
     Param.sections.value.splice(divisionCount.value);
   } else {
-    for (let i = Param.sections.value.length; i < divisionCount.value; i++) {
-      const defaultPath = [
-        new THREE.Vector2(
-          Param.stocks.value[Param.selectedStockIndex.value].radius / 2,
-          0
-        ),
-        new THREE.Vector2(
-          Param.stocks.value[Param.selectedStockIndex.value].radius / 2,
-          Param.stocks.value[Param.selectedStockIndex.value].height / 2
-        ),
-        new THREE.Vector2(
-          Param.stocks.value[Param.selectedStockIndex.value].radius / 2,
-          Param.stocks.value[Param.selectedStockIndex.value].height
-        ),
-      ];
-      Param.sections.value.push(
-        new Section(new THREE.Vector3(0, 0, 0), new NURBSPath(defaultPath))
-      );
+    const addCount = divisionCount.value - Param.sections.value.length;
+    for (let i = 0; i < addCount; i++) {
+      addSection();
     }
   }
 }
@@ -126,6 +171,8 @@ function editItem(item: SectionItem) {
 
 function duplicateItem(item: SectionItem) {
   console.log("Item duplicated:", item);
+  Param.sections.value.push(item.instance.clone());
+  divisionCount.value = Param.sections.value.length;
 }
 
 function deleteItem(item: SectionItem) {
@@ -151,7 +198,31 @@ function changeSection(item: SectionItem) {
   }
 }
 
+function chageSectionName(item: SectionItem, changedName: string) {
+  Param.sections.value[item.index - 1].name = changedName;
+  console.log("changeSectionName", item, changedName);
+}
+
 function saveSection() {
   console.log("saveSection");
 }
 </script>
+
+<style scoped>
+.add_button {
+  height: auto;
+}
+
+.namechanger >>> input {
+  font-size: 0.8rem;
+}
+</style>
+
+<style>
+.v-data-table thead th {
+  font-size: 12px !important;
+}
+.v-data-table tbody td {
+  font-size: 12px !important;
+}
+</style>

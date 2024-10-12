@@ -38,4 +38,8 @@ export class NURBSPath extends BasePath {
     const nurbsCurve = new NURBSCurve(degree, knots, controlPoints);
     return nurbsCurve;
   }
+
+  clone(): NURBSPath {
+    return new NURBSPath([...this.points]);
+  }
 }

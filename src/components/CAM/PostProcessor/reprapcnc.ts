@@ -43,9 +43,6 @@ export class RepRapCNCPostProcessor extends BasePostProcessor {
   ): void {
     let rapidGcode = `G0`;
     if (x !== undefined && x !== null) {
-      if (typeof x !== "number") {
-        console.log("x is not number", x);
-      }
       rapidGcode += ` X${x.toFixed(3)}`;
     }
     if (y !== undefined && y !== null) {

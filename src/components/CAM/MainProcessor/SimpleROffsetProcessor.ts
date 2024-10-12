@@ -1,4 +1,4 @@
-import { Vector2 } from "three";
+import { Vector2, Vector3 } from "three";
 import { Endmill } from "../Endmill";
 import { NURBSPath } from "../Path";
 import { Section } from "../Sections";
@@ -14,8 +14,9 @@ import {
   ResetRotationAngleCL,
 } from "./CL";
 import { MainProcessorParameter } from "./MainProcessorParameter";
-import { Machine } from "../Machine";
+import { Machine, AxisType } from "../Machine";
 import { MainProcessorUtil } from "./MainProcessorUitl";
+import { c } from "vite/dist/node/types.d-aGj9QkWt";
 
 export class SimpleROffsetProcessor extends BaseMainProcessor {
   constructor() {
@@ -41,13 +42,18 @@ export class SimpleROffsetProcessor extends BaseMainProcessor {
     this.update_progress(0, `Feedrate: ${param.feedrate}\n`);
     this.update_progress(0, `Cut pitch: ${param.cut_pitch}\n`);
 
+    //TODO: fix エンドミルの先端座標でワーク原点設定のため、最終点群は断面図形の表面と一致
+    //TODO: fix 内側から外側に切削しているのを、外側から内側に切削するように変更する
+    //TODO: fix 最初の点群の補完なし？
+
     /*
-     * 最終加工の点群生成=オフセット1回分の点群生成
+     * 最終加工の点群生成=最終断面の点群（工具先端座標系のため、最終点群は断面図形の表面と一致）
      */
     this.update_progress(0, "---Create Path---\n");
-    const lastlayer_sections = sections.map((section) => {
+    const lastlayer_sections = sections;
+    /*sections.map((section) => { //工具中心座標系の場合、最終点群はオフセット
       const points = section.path.points.map((point) => {
-        return new Vector2(point.x + param.cut_depth, point.y);
+        return new Vector2(point.x + endmill.radius, point.y);
       });
       return new Section(
         section.origin,
@@ -56,6 +62,8 @@ export class SimpleROffsetProcessor extends BaseMainProcessor {
         section.name + "_outer_last"
       );
     });
+    */
+    console.log("lastlayer", lastlayer_sections);
 
     // 高さ方向Vector2.yでソートされているか確認
     const is_sorted = lastlayer_sections.every((section) => {
@@ -87,6 +95,13 @@ export class SimpleROffsetProcessor extends BaseMainProcessor {
 
     //断面の点数を揃える。断面の点数は、全てのSectionのPath.points.yのユニークなの数とする。
     //点数カウント
+    const num_of_points_list = sections.map(
+      (section) => section.path.points.length
+    );
+    this.update_progress(
+      0,
+      `section detail divided num (original): [${num_of_points_list}]\n`
+    );
     const uniq_y = new Set<number>(
       sections.flatMap((section) => section.path.points.map((point) => point.y))
     );
@@ -95,6 +110,8 @@ export class SimpleROffsetProcessor extends BaseMainProcessor {
       0,
       `section divided num (unique Y): ${target_section_divided_num}\n`
     );
+
+    console.log("uniq_y", uniq_y);
 
     //断面の点数を揃え
     lastlayer_sections.forEach((section) => {
@@ -128,8 +145,8 @@ export class SimpleROffsetProcessor extends BaseMainProcessor {
         } else {
           return Math.ceil((y - array[index - 1]) / param.cut_depth);
         }
-      });
-
+      })
+      .slice(1);
     this.update_progress(
       0,
       `section detail divided num (pitch Y): ${pitch_complement_count_array.reduce(
@@ -139,6 +156,8 @@ export class SimpleROffsetProcessor extends BaseMainProcessor {
         0
       )}\n`
     );
+
+    console.log("pitch_complement_count_array", pitch_complement_count_array);
 
     //点を補完する
     const complemented_sections = lastlayer_sections.map((section, index) => {
@@ -163,6 +182,7 @@ export class SimpleROffsetProcessor extends BaseMainProcessor {
         section.name + "_complemented"
       );
     });
+    console.log("hokan", complemented_sections);
 
     //断面間の点数チェック。全ての断面の点数が同じかチェック
     const is_same_section_divided_num = complemented_sections.every(
@@ -197,7 +217,7 @@ export class SimpleROffsetProcessor extends BaseMainProcessor {
 
     const layered_sections = new Array<Array<Section>>();
     // 補正済みsectionsをベースに、一番内側のオフセットを作成し、順に外側のオフセットを作成する。
-    for (let offset_num = 1; offset_num <= offset_times; offset_num++) {
+    for (let offset_num = 0; offset_num < offset_times; offset_num++) {
       //オフセット回数分ループ
       //オフセット処理。オリジナルのArray<Section>からオフセットしたArray<Section>を作成する。
       const offset_section = complemented_sections.map((section) => {
@@ -240,6 +260,7 @@ export class SimpleROffsetProcessor extends BaseMainProcessor {
 
     //1. 初期位置への移動
     //工具退避
+    cldata.data.push(new CommentCL("ToolEscape"));
     const tool_escape = MainProcessorUtil.AxisDictionaryToDistanceArray({
       [radius_axis_name]: stock.radius + endmill.diameter + 10, //tmp: 10mm up
     });
@@ -259,15 +280,15 @@ export class SimpleROffsetProcessor extends BaseMainProcessor {
     //各レイヤーのSectionのPathの同じindexの点を加工パスとする。
     //レイヤーを移動する場合は一度工具退避を実施し、初期位置へ移動してからレイヤー移動を行う。
     for (
-      let layer_index = 0;
-      layer_index < layered_sections.length;
-      layer_index++
+      let layer_index = layered_sections.length - 1;
+      layer_index >= 0;
+      layer_index--
     ) {
       //レイヤーループ
 
       //レイヤー毎の加工パス生成
-      this.update_progress(0, `Layer ${layer_index + 1} processing...\n`);
-      cldata.data.push(new CommentCL(`Layer ${layer_index + 1}`));
+      this.update_progress(0, `Layer ${layer_index} processing...\n`);
+      cldata.data.push(new CommentCL(`Layer ${layer_index}`));
 
       //レイヤーのセクション配列を取得
       const selected_layer_sections = layered_sections[layer_index];
@@ -281,7 +302,7 @@ export class SimpleROffsetProcessor extends BaseMainProcessor {
         point_i++
       ) {
         //断面の点数ループ=輪切りの点数ループ
-
+        cldata.data.push(new CommentCL(`Loop ${point_i}`));
         //レイヤーの点を加工パスに変換（回転軸1周分）
         selected_layer_sections.forEach((section, index) => {
           const point = section.path.points[point_i]; //加工対象点
@@ -308,6 +329,8 @@ export class SimpleROffsetProcessor extends BaseMainProcessor {
         cldata.data.push(new ResetRotationAngleCL());
       }
       //工具退避
+      cldata.data.push(new CommentCL("ToolEscape"));
+
       cldata.data.push(escape_cl);
       cldata.data.push(start_cl);
     }

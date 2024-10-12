@@ -8,6 +8,9 @@
         >
       </template>
       <template v-slot:append>
+        <v-btn icon @click="startHereDialog = true">
+          <v-icon>mdi-help-circle</v-icon>
+        </v-btn>
         <v-btn variant="outlined" class="mx-2" @click="onCliclkCreatePath"
           >加工パス生成</v-btn
         >
@@ -36,7 +39,7 @@
       </v-col>
     </v-row>
     <CAMProcessDialog v-model:model-value="camprocessing_dialog" />
-    <StartHereDialog />
+    <StartHereDialog v-model:isshow="startHereDialog" />
   </v-container>
 </template>
 
@@ -60,6 +63,7 @@ import { provide, ref } from "vue";
 import { Vector3 } from "three";
 
 import { version } from "../../package.json";
+import { Simulator } from "@/components/Simulation/Simulator";
 
 const widget_open_list_left = ref([
   "StockWidget",
@@ -75,6 +79,11 @@ const widget_open_list_right = ref([
 const Param = new ReactiveParameters();
 
 provide("Param", Param);
+
+const simulator = new Simulator();
+provide("simulator", simulator);
+
+const startHereDialog = ref(true);
 
 const camprocessing_dialog = ref(false);
 function onCliclkCreatePath() {

@@ -38,12 +38,12 @@ export abstract class BaseCL {}
 
 export class RapidCL extends BaseCL {
   constructor(
-    public x: number | undefined | null,
-    public y: number | undefined | null,
-    public z: number | undefined | null,
-    public a: number | undefined | null,
-    public b: number | undefined | null,
-    public c: number | undefined | null
+    public x: number | null = null,
+    public y: number | null = null,
+    public z: number | null = null,
+    public a: number | null = null,
+    public b: number | null = null,
+    public c: number | null = null
   ) {
     super();
   }
@@ -51,12 +51,12 @@ export class RapidCL extends BaseCL {
 
 export class LinearCL extends BaseCL {
   constructor(
-    public x: number | undefined | null,
-    public y: number | undefined | null,
-    public z: number | undefined | null,
-    public a: number | undefined | null,
-    public b: number | undefined | null,
-    public c: number | undefined | null,
+    public x: number | null = null,
+    public y: number | null = null,
+    public z: number | null = null,
+    public a: number | null = null,
+    public b: number | null = null,
+    public c: number | null = null,
     public feed: number
   ) {
     super();

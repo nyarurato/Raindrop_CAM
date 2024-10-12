@@ -1,34 +1,92 @@
 <template>
   <v-dialog v-model="dialogflag" persistent max-width="500px">
     <v-card>
-      <v-card-title> Progress Dialog </v-card-title>
+      <v-card-title class="text-h5 d-flex justify-space-between align-center">
+        <span class="headline">CAM実行ダイアログ</span>
+        <v-btn
+          icon="mdi-close"
+          variant="text"
+          @click="dialogflag = false"
+        ></v-btn>
+      </v-card-title>
       <v-card-text>
-        <v-progress-linear
-          v-if="showProgressBar"
-          v-model="progressValue"
-          :color="progressbarColor"
-          height="25"
-          :striped="isAnimate"
-        >
-          <template v-slot:default="{ value }">
-            <strong>{{ Math.ceil(value) }}%</strong>
-          </template>
-        </v-progress-linear>
-        <div>
-          <v-btn v-if="!showProgressBar" @click="startProgress"
-            >Start Progress</v-btn
+        <v-row>
+          <v-progress-linear
+            v-if="showProgressBar"
+            v-model="progressValue"
+            :color="progressbarColor"
+            height="25"
+            :striped="isAnimate"
           >
-          <v-btn @click="Restart">Restart</v-btn>
-          <v-btn @click="dialogflag = false">Close</v-btn>
-        </div>
-        <div>
-          <v-btn v-if="isDownloadableCL" download="cl.txt" :href="DownloadCL()"
-            >CLダウンロード</v-btn
-          >
-          <v-btn v-if="isDownloadableNC" download="out.nc" :href="DownloadNC()"
-            >NCダウンロード</v-btn
-          >
-        </div>
+            <template v-slot:default="{ value }">
+              <strong>{{ Math.ceil(value) }}%</strong>
+            </template>
+          </v-progress-linear>
+        </v-row>
+        <v-row v-if="isDoneCAM">
+          開始日時: {{ startDate.toLocaleString() }}<br />
+          終了日時: {{ endDate.toLocaleString() }}<br />
+          所要時間 {{ processingTime }}ms
+        </v-row>
+        <v-row v-if="isDoneSimulate">
+          シミュレーション結果は3Dビューで描画・確認してください。
+        </v-row>
+        <v-row>
+          <v-col v-if="!showProgressBar" class="d-flex justify-center">
+            <v-btn
+              @click="startProgress"
+              prepend-icon="mdi-play"
+              color="primary"
+              >処理開始</v-btn
+            >
+          </v-col>
+          <v-col v-if="isDoneCAM">
+            <v-btn
+              @click="Restart"
+              class="new-line-button"
+              prepend-icon="mdi-restart"
+              color="secondary"
+              block
+              >CAM計算<br />再スタート</v-btn
+            >
+          </v-col>
+          <v-col v-if="isDoneCAM">
+            <v-btn
+              @click="simulate_result"
+              prepend-icon="mdi-calculator-variant"
+              color="primary"
+              block
+              class="new-line-button"
+              >結果シミュレーション<br />計算開始</v-btn
+            >
+          </v-col>
+        </v-row>
+        <v-row>
+          <v-col>
+            <v-btn
+              v-if="isDownloadableNC"
+              download="out.nc"
+              :href="DownloadNC()"
+              prepend-icon="mdi-bolt"
+              color="success"
+              block
+              class="new-line-button"
+              >NCダウンロード<br />マシン用</v-btn
+            >
+          </v-col>
+          <v-col>
+            <v-btn
+              v-if="isDownloadableCL"
+              download="cl.txt"
+              :href="DownloadCL()"
+              prepend-icon="mdi-bug-outline"
+              color="warning"
+              block
+              class="new-line-button"
+              >CLダウンロード<br />デバッグ用</v-btn
+            >
+          </v-col>
+        </v-row>
       </v-card-text>
       <v-card-actions>
         <v-btn @click="showLogBox = !showLogBox" color="secondary"
@@ -51,13 +109,15 @@
 </template>
 
 <script lang="ts" setup>
-import { defineComponent, defineModel, ref, inject } from "vue";
+import { defineComponent, defineModel, ref, inject, provide } from "vue";
 import { SimpleROffsetProcessor } from "./CAM/MainProcessor/SimpleROffsetProcessor";
 import { ReactiveParameters } from "./CAM/Parameters";
 import { Machine } from "./CAM/Machine";
 import { CLData } from "./CAM/MainProcessor/CL";
 import { PostProcessorParameter } from "./CAM/PostProcessor/PostProcessorParameter";
 import { RepRapCNCPostProcessor } from "./CAM/PostProcessor/reprapcnc";
+
+import { Simulator } from "./Simulation/Simulator";
 
 const dialogflag = defineModel<boolean>();
 
@@ -69,12 +129,19 @@ const progressbarColor = ref("success");
 const isAnimate = ref(true);
 const isDownloadableCL = ref(false);
 const isDownloadableNC = ref(false);
+const isDoneCAM = ref(false);
+const startDate = ref(new Date());
+const endDate = ref(new Date());
+const processingTime = ref(0);
+const isDoneSimulate = ref(false);
 
 const Param = inject(
   "Param",
   () => new ReactiveParameters(),
   true
 ) as ReactiveParameters;
+
+const simulator = inject("simulator") as Simulator;
 
 let _cl_data: CLData | null = null;
 let _nc_data = "";
@@ -91,6 +158,7 @@ async function startProgress() {
 
   _cl_data = null;
   _nc_data = "";
+  startDate.value = new Date();
 
   mainprocessor.onProgress = (value: number, message: string) => {
     progressbarColor.value = "success";
@@ -104,6 +172,7 @@ async function startProgress() {
     logData.value = message;
     progressValue.value = 100;
     isAnimate.value = false;
+    isDoneCAM.value = true;
   };
 
   const cldata = await mainprocessor.processAsync(
@@ -144,6 +213,7 @@ async function startProgress() {
     logData.value += message;
     progressValue.value = 100;
     isAnimate.value = false;
+    isDoneCAM.value = true;
   };
   _nc_data = await postprocessor.processAsync(cldata, postprocessor_param);
 
@@ -157,6 +227,10 @@ async function startProgress() {
     isAnimate.value = false;
     return;
   }
+  endDate.value = new Date();
+  processingTime.value = endDate.value.getTime() - startDate.value.getTime();
+  isDoneCAM.value = true;
+  isDoneSimulate.value = false;
 }
 
 function Restart() {
@@ -174,6 +248,35 @@ function DownloadNC() {
   );
   return nc_url;
 }
+
+function simulate_result() {
+  if (!isDoneCAM) return;
+  if (!simulator) return;
+
+  if (Param.machine.value) {
+    logData.value += "start simulation\n";
+    simulator.start(
+      Param.stocks.value[0],
+      Param.endmills.value[0],
+      _cl_data!,
+      Param.machine.value
+    );
+    logData.value += "end simulation\n";
+    logData.value += simulator.debugVoxelString();
+    isDoneSimulate.value = true;
+  } else {
+    console.error("Machine parameter is null");
+    return;
+  }
+}
 </script>
 
-<style scoped></style>
+<style scoped>
+.v-card .v-row {
+  margin-top: 20px;
+}
+
+.new-line-button.v-btn {
+  height: auto;
+}
+</style>

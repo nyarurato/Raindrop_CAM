@@ -104,12 +104,11 @@ export class Machine {
     this._name = name ?? "Machine";
     this._max_feedrate = max_feedrate ?? 1000;
     const axes = [
-      new Axis(AxisType.X),
-      new Axis(AxisType.Y),
       new Axis(AxisType.Z),
+      new Axis(AxisType.Y),
       new Axis(AxisType.B),
     ];
-    this._axes = new AxisStructure(axes, axes[0], axes[1], axes[3]);
+    this._axes = new AxisStructure(axes, axes[0], axes[1], axes[2]);
   }
   // Getter methods
   get name(): string {
