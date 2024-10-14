@@ -50,7 +50,18 @@ export class SimpleROffsetProcessor extends BaseMainProcessor {
      * 最終加工の点群生成=最終断面の点群（工具先端座標系のため、最終点群は断面図形の表面と一致）
      */
     this.update_progress(0, "---Create Path---\n");
-    const lastlayer_sections = sections;
+    const lastlayer_sections = sections.map((section) => {
+      //コピー
+      const points = section.path.points.map((point) => {
+        return new Vector2(point.x, point.y);
+      });
+      return new Section(
+        section.origin,
+        new NURBSPath(points),
+        section.projectionPlane.normal,
+        section.name + "_outer_last"
+      );
+    });
     /*sections.map((section) => { //工具中心座標系の場合、最終点群はオフセット
       const points = section.path.points.map((point) => {
         return new Vector2(point.x + endmill.radius, point.y);

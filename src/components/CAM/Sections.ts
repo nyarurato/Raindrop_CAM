@@ -39,6 +39,37 @@ export class Section {
     return planeGeometry;
   }
 
+  //2D平面上の座標を3D上の平面の3D座標に変換する。(Zは高さ方向想定)
+  projectTo3DPlane(
+    pos: THREE.Vector2 | THREE.Vector2[],
+    plane_origin3D: THREE.Vector3
+  ): THREE.Vector3 | THREE.Vector3[] {
+    const quaternion = new THREE.Quaternion().setFromUnitVectors(
+      //Z軸が平面の法線に一致するように回転させる
+      new THREE.Vector3(0, 0, 1),
+      this.projectionPlane.normal
+    );
+
+    const projectedPoints = new Array<THREE.Vector3>();
+    if (pos instanceof Array) {
+      return pos.map((point) => {
+        const projectedPoint = new THREE.Vector3(point.x, point.y, 0); //2D平面上の座標を3Dに変換
+        //平面の法線ベクトルを使って回転させる
+        const projectedPoint3D = projectedPoint.applyQuaternion(quaternion);
+        //平面の原点を加算
+        projectedPoint3D.add(plane_origin3D);
+        return projectedPoint3D;
+      });
+    } else {
+      const projectedPoint = new THREE.Vector3(pos.x, pos.y, 0); //2D平面上の座標を3Dに変換
+      //平面の法線ベクトルを使って回転させる
+      const projectedPoint3D = projectedPoint.applyQuaternion(quaternion);
+      //平面の原点を加算
+      projectedPoint3D.add(plane_origin3D);
+      return projectedPoint3D;
+    }
+  }
+
   //平面上のXYを3DのXYZに変換し、変換された曲線を返す。
   convertTo3D(): NURBSCurve {
     const nurbsCurve2D = this.path.GetNurbsCurve();

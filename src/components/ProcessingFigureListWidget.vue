@@ -154,6 +154,9 @@ function addSection() {
 }
 
 function changeSectionNum() {
+  if (divisionCount.value < 1) {
+    divisionCount.value = 1;
+  }
   if (divisionCount.value < Param.sections.value.length) {
     Param.sections.value.splice(divisionCount.value);
   } else {

@@ -2,7 +2,6 @@
   <!--<Suspense>-->
   <TresCanvas v-bind="state" class="canvas3d">
     <Stats />
-    <OrbitControls />
     <TresPerspectiveCamera
       :position="[
         0,
@@ -12,48 +11,69 @@
       :fov="75"
       :near="0.1"
       :far="5000"
-    />
+    >
+      <TresDirectionalLight />
+    </TresPerspectiveCamera>
+    <OrbitControls />
 
     <!-- Stock -->
     <!-- 半透明 -->
-    <TresMesh
-      :geometry="mesh.geometry"
-      :position="cylinder_position"
-      v-if="is_checked_stock"
-    >
-      <TresMeshBasicMaterial
-        :color="cylinder_color"
-        :wireframe="false"
-        :transparent="true"
-        :opacity="0.1"
-      />
-    </TresMesh>
-    <!-- 線 -->
-    <TresLineSegments :position="cylinder_position" v-if="is_checked_stock">
-      <TresEdgesGeometry :args="[mesh.geometry]" />
-      <TresLineBasicMaterial color="black" />
-    </TresLineSegments>
+    <TresGroup v-if="is_checked_stock">
+      <TresMesh :geometry="mesh.geometry" :position="cylinder_position">
+        <TresMeshBasicMaterial
+          :color="cylinder_color"
+          :wireframe="false"
+          :transparent="true"
+          :opacity="0.1"
+        />
+      </TresMesh>
+      <!-- 線 -->
+      <TresLineSegments :position="cylinder_position">
+        <TresEdgesGeometry :args="[mesh.geometry]" />
+        <TresLineBasicMaterial color="black" />
+      </TresLineSegments>
+    </TresGroup>
 
     <!-- Stock ここまで-->
 
-    <!-- 曲線デバッグ -->
-    <Line2 :points="points2" :color="line_color" />
-    <Line2 :points="points3" :color="line_color2" />
-    <Line2 :points="pp" :color="'cyan'" />
+    <!-- 断面線 -->
+    <TresGroup v-if="is_checked_section_path">
+      <primitive :object="sec_lines" v-for="sec_lines in section_path_points" />
+    </TresGroup>
 
-    <!-- まで曲線デバッグ -->
+    <!-- ここまで断面線 -->
     <!-- 面表示 -->
-    <TresMesh :geometry="test_plane_geo" :position="[0, 2, 0]">
-      <TresMeshBasicMaterial
-        :args="[{ color: 0x00ff00, side: THREE.DoubleSide }]"
-      />
-    </TresMesh>
+    <TresGroup v-if="is_checked_section">
+      <TresMesh
+        :geometry="geo"
+        :position="[
+          (Param.stocks.value[0].radius / 2) *
+            Math.cos((index * Math.PI * 2) / Param.sections.value.length),
+          Param.stocks.value[0].height / 2,
+          (Param.stocks.value[0].radius / 2) *
+            Math.sin((index * Math.PI * 2) / Param.sections.value.length),
+        ]"
+        v-for="(geo, index) in test_plane_geo"
+      >
+        <TresMeshBasicMaterial
+          :args="[
+            {
+              color: 0x00ff00,
+              side: THREE.DoubleSide,
+              opacity: 0.5,
+              map: plane_texture[index],
+            },
+          ]"
+        />
+      </TresMesh>
+    </TresGroup>
+    <!-- ここまで面表示 -->
 
     <!--ボクセル表示-->
     <primitive v-if="show_voxel" :object="voxel_group" />
     <!--ここまでボクセル表示-->
 
-    <TresAmbientLight :intensity="1" />
+    <TresAmbientLight :intensity="0.1" />
     <TresAxesHelper :args="[Param.stocks.value[0].radius / 2]" />
     <!--<TresGridHelper :args="grid_arg" />-->
   </TresCanvas>
@@ -66,21 +86,16 @@
         <v-checkbox label="ストック" v-model="is_checked_stock"></v-checkbox>
       </v-col>
       <v-col>
-        <v-checkbox
-          label="断面"
-          v-model="is_checked_section"
-          disabled
-        ></v-checkbox>
+        <v-checkbox label="断面" v-model="is_checked_section"></v-checkbox>
       </v-col>
       <v-col>
         <v-checkbox
-          label="パス"
-          v-model="is_checked_path"
-          disabled
+          label="断面パス"
+          v-model="is_checked_section_path"
         ></v-checkbox>
       </v-col>
     </v-row>
-    <v-row v-if="simulator.is_exist_voxel">
+    <v-row v-if="show_simulator_result_button">
       <v-col>
         <v-row class="justify-center">
           <v-btn @click="createVoxelModel(simulator.voxel_data)"
@@ -132,6 +147,8 @@ import { ReactiveParameters } from "./CAM/Parameters";
 
 import { CLData } from "./CAM/MainProcessor/CL";
 import { Simulator } from "./Simulation/Simulator";
+import { isReturnStatement } from "typescript";
+import { isArray } from "@tresjs/core/dist/src/utils";
 
 const Param = inject(
   "Param",
@@ -142,8 +159,14 @@ const Param = inject(
 const simulator = inject("simulator") as Simulator;
 
 const is_checked_stock = ref(true);
-const is_checked_section = ref(false);
-const is_checked_path = ref(false);
+const is_checked_section = ref(true);
+const is_checked_section_path = ref(true);
+
+const test_style = {
+  position: "absolute",
+  top: "100px",
+  right: "100px",
+};
 
 const state = reactive({
   clearColor: "#333333",
@@ -153,10 +176,6 @@ const state = reactive({
   toneMapping: NoToneMapping,
   renderMode: "on-demand" as "on-demand" | "always" | "manual",
 });
-
-const { onLoop } = useRenderLoop();
-
-const grid_arg = [Param.stocks.value[0].radius * 4, 50];
 
 const modelmaker = new ModelMaker();
 const cylinderop: BaseCylinderGeometryOptions = {
@@ -177,43 +196,87 @@ const points = new Array<THREE.Vector3>();
 const mesh = modelmaker.createCustomModel(cylinderop, points);
 
 const cylinder_color = new THREE.Color(0xcccccc);
-const cylinder_color2 = new THREE.Color(0x000000);
 
-const line_color = new THREE.Color(0xff0000);
-const line_color2 = new THREE.Color(THREE.Color.NAMES.blue);
-
-const points2: THREE.Vector2[] = [
-  new THREE.Vector2(0.2, -0.5),
-  new THREE.Vector2(1, 0),
-  new THREE.Vector2(0.7, 1),
-  new THREE.Vector2(0.7, 2),
-  new THREE.Vector2(0.2, 4),
-];
-const path = new NURBSPath(points2);
-const pp = path.GetNurbsCurve().getPoints(100);
-const section = new Section(new THREE.Vector3(0, 0, 0), path);
-section.setProjectionPlane(new THREE.Vector3(1, 0, 0));
-const nubsc = section.convertTo3D();
-const points3 = nubsc.controlPoints.map(
-  (p) => new THREE.Vector3(p.x, p.y, p instanceof THREE.Vector2 ? 0 : p.z)
-);
-
-const test_plane_geo = section.getPlaneGeometry();
-/*
-onLoop(({ elapsed }) => {
-  if (boxRef.value) {
-    boxRef.value.rotation.y = elapsed;
-    boxRef.value.rotation.z = elapsed;
-  }
-});
-*/
+const test_plane_geo = createSectionPlanes();
+const plane_texture = createPlaneTexture();
+const section_path_points = createSectionPlanesPaths();
 
 const voxel_group = new THREE.Group();
 const show_voxel = ref(false);
 const show_removed_voxel = ref(true);
 const show_remain_voxel = ref(true);
 
+const show_simulator_result_button = ref(simulator.is_exist_voxel);
 const is_calculating = ref(false);
+
+function createSectionPlanes(): THREE.PlaneGeometry[] {
+  const section_planes = Param.sections.value.map((section, index, array) => {
+    const angle = (360 / Param.sections.value.length) * (Math.PI / 180) * index;
+
+    const vec = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+    const normal = vec.cross(new THREE.Vector3(0, 1, 0));
+    section.setProjectionPlane(normal);
+    return section.getPlaneGeometry(
+      Param.stocks.value[0].radius,
+      Param.stocks.value[0].height
+    );
+  });
+  return section_planes;
+}
+
+function createPlaneTexture(): Array<THREE.CanvasTexture> {
+  //Planeの右上に数字を表示するためのテクスチャを作成
+  const plane_textures = new Array<THREE.CanvasTexture>();
+
+  for (let i = 0; i < Param.sections.value.length; i++) {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    canvas.width = 256;
+    canvas.height = Math.floor(
+      (256 * Param.stocks.value[0].height) / Param.stocks.value[0].radius
+    );
+    if (context) {
+      context.fillStyle = "white";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = "black";
+      context.font = "50px Arial";
+      context.textAlign = "left";
+      context.textBaseline = "top";
+      context.fillText((i + 1).toString(), 10, 10);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    plane_textures.push(texture);
+  }
+  return plane_textures;
+}
+
+function createSectionPlanesPaths(): Array<THREE.Group> {
+  const material = new THREE.LineBasicMaterial({
+    color: 0x0000ff,
+    linewidth: 2,
+  });
+  const section_paths = Param.sections.value.map((section, index, array) => {
+    const start_pos = new THREE.Vector3(0, 0, 0);
+
+    const p = section.projectTo3DPlane(section.path.points, start_pos);
+
+    const points = p instanceof Array ? p : [p];
+
+    const group = new THREE.Group();
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const line = new THREE.Line(geometry, material);
+    group.add(line);
+
+    //頂点を描画
+    const points_geo = new THREE.BufferGeometry().setFromPoints(points);
+    const points_material = new THREE.PointsMaterial({ color: 0x0000ff });
+    const points_mesh = new THREE.Points(points_geo, points_material);
+    group.add(points_mesh);
+
+    return group;
+  });
+  return section_paths;
+}
 
 function createVoxelModel(data: Array<Array<Array<boolean>>>) {
   console.log("createVoxelModel");
@@ -296,19 +359,23 @@ function createVoxelModel(data: Array<Array<Array<boolean>>>) {
   }
   show_voxel.value = true;
   is_calculating.value = false;
+  is_checked_stock.value = false;
+  is_checked_section.value = false;
+  is_checked_section_path.value = false;
 }
-/*
-onMounted(() => {
-  console.log("mounted");
-});
 
-onUnmounted(() => {
-  console.log("unmounted");
-});
-*/
-watch(Param.stocks.value, (val) => {
-  console.log("stock changed", val);
-});
+watch(
+  () => Param.sections.value.length,
+  () => {
+    test_plane_geo.splice(0, test_plane_geo.length, ...createSectionPlanes());
+    plane_texture.splice(0, plane_texture.length, ...createPlaneTexture());
+    section_path_points.splice(
+      0,
+      section_path_points.length,
+      ...createSectionPlanesPaths()
+    );
+  }
+);
 </script>
 
 <style scoped>

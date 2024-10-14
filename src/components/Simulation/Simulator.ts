@@ -71,13 +71,25 @@ export class Simulator {
         if (angle != current_angle) {
           //角度が変わる場合、円弧補完でボクセルを消していく
           const divcount = Math.floor(Math.abs(angle - current_angle)); //分割数
-          this.eraseVoxelInterpolation(
+          const current = this.offsetEndmillPosFromTopToCenter(
             current_radius,
             current_height,
             current_angle,
+            endmill
+          );
+          const next = this.offsetEndmillPosFromTopToCenter(
             radius_pos,
             height_pos,
             angle,
+            endmill
+          );
+          this.eraseVoxelInterpolation(
+            current.r,
+            current.h,
+            current.ang,
+            next.r,
+            next.h,
+            next.ang,
             divcount,
             endmill_radius_count_voxel
           );
@@ -91,13 +103,26 @@ export class Simulator {
               (height_pos - current_height) ** 2
           );
           const divcount = Math.floor(distance); //分割数
-          this.eraseVoxelInterpolation(
+
+          const current = this.offsetEndmillPosFromTopToCenter(
             current_radius,
             current_height,
             current_angle,
+            endmill
+          );
+          const next = this.offsetEndmillPosFromTopToCenter(
             radius_pos,
             height_pos,
             angle,
+            endmill
+          );
+          this.eraseVoxelInterpolation(
+            current.r,
+            current.h,
+            current.ang,
+            next.r,
+            next.h,
+            next.ang,
             divcount,
             endmill_radius_count_voxel
           );
@@ -128,6 +153,16 @@ export class Simulator {
 
   deg2rad(deg: number) {
     return (deg * Math.PI) / 180;
+  }
+
+  offsetEndmillPosFromTopToCenter(
+    radius: number,
+    height: number,
+    angle: number,
+    endmill: Endmill
+  ): { r: number; h: number; ang: number } {
+    //エンドミルの座標を先端から中心にオフセットする
+    return { r: radius + endmill.diameter / 2, h: height, ang: angle };
   }
 
   // ボクセルindexから実座標へ変換

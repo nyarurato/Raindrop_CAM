@@ -29,7 +29,7 @@
           所要時間 {{ processingTime }}ms
         </v-row>
         <v-row v-if="isDoneSimulate">
-          シミュレーション結果は3Dビューで描画・確認してください。
+          シミュレーション結果は3Dビューを開き、描画ボタンを押して結果を確認します。
         </v-row>
         <v-row>
           <v-col v-if="!showProgressBar" class="d-flex justify-center">
@@ -175,18 +175,24 @@ async function startProgress() {
     isDoneCAM.value = true;
   };
 
-  const cldata = await mainprocessor.processAsync(
-    sections,
-    stocks[0],
-    endmills[0],
-    machine ?? new Machine(),
-    main_param
-  );
+  let cldata: CLData | null = null;
+  try {
+    cldata = await mainprocessor.processAsync(
+      sections,
+      stocks[0],
+      endmills[0],
+      machine ?? new Machine(),
+      main_param
+    );
 
-  if (cldata) {
-    isDownloadableCL.value = true;
-    _cl_data = cldata;
-  } else {
+    if (cldata) {
+      isDownloadableCL.value = true;
+      _cl_data = cldata;
+    } else {
+      Error("CLデータの生成に失敗しました。CLデータがnullです。");
+    }
+  } catch (e) {
+    console.error(e);
     progressbarColor.value = "error";
     logData.value += "CLデータの生成に失敗しました。\n";
     progressValue.value = 100;
@@ -215,18 +221,24 @@ async function startProgress() {
     isAnimate.value = false;
     isDoneCAM.value = true;
   };
-  _nc_data = await postprocessor.processAsync(cldata, postprocessor_param);
+  try {
+    _nc_data = await postprocessor.processAsync(cldata, postprocessor_param);
 
-  if (_nc_data) {
-    isAnimate.value = false;
-    isDownloadableNC.value = true;
-  } else {
+    if (_nc_data) {
+      isAnimate.value = false;
+      isDownloadableNC.value = true;
+    } else {
+      Error("NCデータの生成に失敗しました。NCデータがnullです。");
+    }
+  } catch (e) {
+    console.error(e);
     progressbarColor.value = "error";
     logData.value += "NCデータの生成に失敗しました。\n";
     progressValue.value = 100;
     isAnimate.value = false;
     return;
   }
+
   endDate.value = new Date();
   processingTime.value = endDate.value.getTime() - startDate.value.getTime();
   isDoneCAM.value = true;
@@ -249,20 +261,35 @@ function DownloadNC() {
   return nc_url;
 }
 
-function simulate_result() {
+async function simulate_result(): Promise<void> {
   if (!isDoneCAM) return;
   if (!simulator) return;
 
   if (Param.machine.value) {
+    progressValue.value = 50;
+    isAnimate.value = true;
     logData.value += "start simulation\n";
-    simulator.start(
-      Param.stocks.value[0],
-      Param.endmills.value[0],
-      _cl_data!,
-      Param.machine.value
-    );
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      await simulator.start(
+        Param.stocks.value[0],
+        Param.endmills.value[0],
+        _cl_data!,
+        Param.machine.value
+      );
+    } catch (e) {
+      console.error(e);
+      logData.value += e;
+      progressbarColor.value = "error";
+      progressValue.value = 100;
+      isAnimate.value = false;
+      return;
+    }
     logData.value += "end simulation\n";
     logData.value += simulator.debugVoxelString();
+    progressValue.value = 100;
+    isAnimate.value = false;
     isDoneSimulate.value = true;
   } else {
     console.error("Machine parameter is null");
