@@ -9,8 +9,8 @@
     "scope": "/",
     "start_url": "/",
     "icons": [
-    { "src": "/img/logo-192.png", "type": "image/png", "sizes": "192x192" },
-    { "src": "/img/logo-512.png", "type": "image/png", "sizes": "512x512" }
+    { "src": "./img/logo-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "./img/logo-512.png", "type": "image/png", "sizes": "512x512" }
   ],
-  "screenshots":[{"src":"/img/screenshot1.png","sizes":"1920x959","type":"image/png","form_factor":"wide"}]
+  "screenshots":[{"src":"./img/screenshot1.png","sizes":"1920x959","type":"image/png","form_factor":"wide"}]
   }
