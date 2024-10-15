@@ -2,7 +2,7 @@
   <v-container>
     <v-app-bar color="primary" density="compact">
       <template v-slot:prepend>
-        <v-img src="./img/logo.png" width="2.5rem" />
+        <v-img src="./img/logo.png" width="2.5rem" class="ml-2" />
         <span class="titlename ml-2"
           >Raindrop<span class="cadcam ml-3">CAD/CAM v{{ version }}</span></span
         >

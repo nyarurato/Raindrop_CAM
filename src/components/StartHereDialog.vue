@@ -27,7 +27,7 @@
               <v-img width="8vw" class="path_img" src="./img/overhang.jpg" />
             </v-col>
             <v-col>
-              <div>立ち壁</div>
+              <div>立ち壁（90度部）</div>
               <v-img width="8vw" class="path_img" src="./img/wall.jpg" />
             </v-col>
           </v-row>
@@ -136,6 +136,9 @@
                 本アプリケーションは、形状によっては正確なパス生成ができない場合があります。
               </li>
               <li>
+                v0.1.0時点では作成した図形の保存機能はありません。必要な場合はスクリーンショット等で保存してください。
+              </li>
+              <li>
                 シミュレーション結果は、簡易計算のため実際の加工結果とは異なります。<br />概形の確認に留めてください。
               </li>
             </ul>
@@ -151,6 +154,7 @@
         <v-btn color="primary" @click="nextStep" v-if="currentStep < 3"
           >次へ</v-btn
         >
+        <v-btn color="primary" @click="closeDialog" v-else>閉じる</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
