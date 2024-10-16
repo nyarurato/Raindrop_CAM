@@ -10,13 +10,13 @@
       ></v-select>
       <v-text-field
         v-model.number="diameter"
-        label="直径"
+        label="直径(mm)"
         outlined
         type="number"
       ></v-text-field>
       <v-text-field
         v-model.number="effective_length"
-        label="有効長"
+        label="有効長(mm)"
         outlined
         type="number"
       ></v-text-field>

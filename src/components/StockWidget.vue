@@ -12,14 +12,14 @@
 
         <v-text-field
           v-model.number="radius"
-          label="半径"
+          label="半径(mm)"
           variant="outlined"
           type="number"
         ></v-text-field>
 
         <v-text-field
           v-model.number="height"
-          label="高さ"
+          label="高さ(mm)"
           variant="outlined"
           type="number"
         ></v-text-field>

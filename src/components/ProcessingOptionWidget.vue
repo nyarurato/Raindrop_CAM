@@ -7,7 +7,7 @@
       />
       <v-text-field
         v-model.number="Param.main_param.value.cut_depth"
-        label="切り込み量"
+        label="半径方向切り込み量(mm)"
       />
     </template>
   </BaseWidget>
