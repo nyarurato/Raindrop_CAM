@@ -1,12 +1,18 @@
 # Raindrop CAD/CAM
+<img src="https://raw.githubusercontent.com/nyarurato/Raindrop_CAM/refs/heads/master/public/img/logo-512.png" width="50%"/>
+
 回転軸を有する3軸,4軸CNCマシン用のWebベースの2D CAD/CAMです。  
-Webブラウザ上で棒材の断面図形を設定し、加工用のNCファイル（Gコード）を生成することができます。  
+Webブラウザ上で棒材の半径の断面図形を設定し、加工用のNCファイル（Gコード）を生成することができます。  
 ブラウザ上ですべての処理が完結するため、図形や加工ファイルは外部に送信されることはありません。  
 
-![logo](/public/img/logo.svg)
+現在は半径方向Y軸、高さ方向Z軸、材料回転軸B軸の軸構成のみ対応しています。  
+また、断面図形は直線のみサポートしています。
 
 ## Webページ
 https://nyarurato.github.io/Raindrop_CAM/
+
+## 操作概略
+![操作画面](https://github.com/user-attachments/assets/b769c5ef-40ef-44da-9ab0-fed904d121b8)
 
 ## 既知の問題(v0.1.0)
 - 現在、加工パス生成は単純半径オフセットのみのサポートのため、すべての形状において正しく加工はできません。  
