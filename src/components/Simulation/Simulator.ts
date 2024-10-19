@@ -233,7 +233,7 @@ export class Simulator {
 
   //工具中心（index:x,y,z）のボクセルから指定サイズのボクセルを立方体で消す
   eraseVoxel(x: number, y: number, z: number, erase_size: number) {
-    const erase_count = Math.floor(erase_size / this.voxel_div_size);
+    const erase_count = erase_size;
     for (let x_offset = -erase_count; x_offset <= erase_count; x_offset++) {
       for (let y_offset = -erase_count; y_offset <= erase_count; y_offset++) {
         for (let z_offset = -erase_count; z_offset <= erase_count; z_offset++) {

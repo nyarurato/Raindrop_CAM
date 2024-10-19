@@ -1,5 +1,4 @@
 <template>
-  <!--<Suspense>-->
   <TresCanvas v-bind="state" class="canvas3d">
     <Stats />
     <TresPerspectiveCamera
@@ -77,7 +76,6 @@
     <TresAxesHelper :args="[Param.stocks.value[0].radius / 2]" />
     <!--<TresGridHelper :args="grid_arg" />-->
   </TresCanvas>
-  <!--</Suspense>-->
 
   <v-card>
     <v-card-title class="text-h6">表示設定</v-card-title>
@@ -278,20 +276,20 @@ function createSectionPlanesPaths(): Array<THREE.Group> {
   return section_paths;
 }
 
-function createVoxelModel(data: Array<Array<Array<boolean>>>) {
+async function createVoxelModel(data: Array<Array<Array<boolean>>>) {
   console.log("createVoxelModel");
   is_calculating.value = true;
   const geometry = new THREE.BoxGeometry(1, 1, 1);
-  const material = new THREE.MeshBasicMaterial({
+  const material = new THREE.MeshStandardMaterial({
     color: 0xff0000,
-    transparent: true,
-    opacity: 0.1,
+    //transparent: true,
+    //opacity: 0.1,
     //wireframe: true,
   });
-  const material_erase = new THREE.MeshBasicMaterial({
+  const material_erase = new THREE.MeshStandardMaterial({
     color: 0x0000ff,
     transparent: true,
-    opacity: 0.1,
+    opacity: 0.5,
     //wireframe: true,
   });
   const all_item = data.length * data[0].length * data[0][0].length;
