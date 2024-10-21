@@ -21,6 +21,7 @@
     "register-service-worker": "^1.7.2",
     "three": "^0.168.0",
     "tweakpane": "^4.0.4",
+    "two.js": "^0.8.14",
     "vite": "^5.4.3",
     "vite-plugin-vuetify": "^2.0.4",
     "vue": "^3.5.3",

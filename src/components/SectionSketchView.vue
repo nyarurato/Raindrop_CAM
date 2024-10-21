@@ -1,6 +1,15 @@
 <template>
-  <canvas ref="canvasref" @contextmenu.prevent> </canvas>
-  <v-btn @click="SaveSection" color="success">編集完了</v-btn>
+  <v-row>
+    <v-col
+      ><canvas ref="canvasref" @contextmenu.prevent style="touch-action: none">
+      </canvas
+    ></v-col>
+  </v-row>
+  <v-row>
+    <v-col>
+      <v-btn @click="SaveSection" color="success">編集完了</v-btn>
+    </v-col>
+  </v-row>
 </template>
 
 <style scoped>
@@ -19,14 +28,19 @@ import { useToast } from "vue-toastification";
 import { BaseStock } from "./CAM/Stock";
 import { ReactiveParameters } from "./CAM/Parameters";
 import { NURBSPath } from "./CAM/Path";
+import Two from "two.js";
+import { Circle } from "two.js/src/shapes/circle";
+import { c } from "vite/dist/node/types.d-aGj9QkWt";
 
 const canvasref = ref<HTMLCanvasElement | null>(null);
 const points = ref<Vector2[]>([]);
 const toast = useToast();
 
+let two: Two;
+
 let scale_factor = 1;
-let origin_x = 0;
-let origin_y = 0;
+let axis_origin_x = 0;
+let axis_origin_y = 0;
 
 const decimal_point_order = 0;
 
@@ -42,238 +56,174 @@ const props = defineProps<{
   points?: Array<Vector2>;
 }>();
 
+const point_objects: Array<Circle> = [];
+const current_point_copy = new Vector2();
+
 onMounted(() => {
   if (canvasref.value) {
-    const canvas = canvasref.value;
-    const ctx = canvas.getContext("2d");
     setup_initial_points();
 
-    if (ctx) {
-      drawInit(ctx);
+    drawInit();
 
-      canvas.addEventListener("mousedown", handleMouseDown);
-      canvas.addEventListener("mousemove", handleMouseMove);
-      canvas.addEventListener("mouseup", handleMouseUp);
-    }
+    two.renderer.domElement.addEventListener("pointerdown", handleMouseDown);
+    two.renderer.domElement.addEventListener("pointermove", handleMouseMove);
+    two.renderer.domElement.addEventListener("pointerup", handleMouseUp);
+    two.renderer.domElement.addEventListener("pointercandel", handlecancel);
   }
 });
 
 window.addEventListener("resize", () => {
-  if (canvasref.value) {
-    const canvas = canvasref.value;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      drawInit(ctx);
-    }
-  }
+  drawInit();
 });
 
-function drawInit(ctx: CanvasRenderingContext2D) {
-  const dpr = window.devicePixelRatio || 1;
-  const rect = ctx.canvas.getBoundingClientRect();
-  const width = rect.width * dpr;
-  const height = rect.height * dpr;
+function drawInit() {
+  if (!canvasref.value) return;
+
+  const tow_params = {
+    type: Two.Types.canvas,
+    autostart: true,
+    domElement: canvasref.value,
+  };
+  if (!two) two = new Two(tow_params);
+  two.clear();
+
   const axis_margin = 30;
-
-  scale_factor = 1;
-
-  ctx.canvas.width = width;
-  ctx.canvas.height = height;
-
-  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  [origin_x, origin_y] = drawAxis(ctx, axis_margin, axis_margin, axis_margin);
 
   if (stock.radius && stock.height) {
     scale_factor = Math.min(
-      ((width - 2 * axis_margin) * 0.9) / stock.radius,
-      ((height - 2 * axis_margin) * 0.9) / stock.height
-    );
-
-    drawStock(
-      ctx,
-      stock.radius,
-      stock.height,
-      origin_x,
-      origin_y,
-      scale_factor
+      ((two.width - 2 * axis_margin) * 0.9) / stock.radius,
+      ((two.height - 2 * axis_margin) * 0.9) / stock.height
     );
   }
 
-  draw_line_points(ctx, points.value, origin_x, origin_y, scale_factor);
-  draw_line_info(ctx, points.value);
+  const [origin_x, origin_y] = drawAxis(two, 30, 30, axis_margin);
+  drawStock(two, stock.radius, stock.height, origin_x, origin_y, scale_factor);
+  draw_line_points(two, points.value, origin_x, origin_y, scale_factor);
+  draw_line_info(two, points.value);
 }
 
 function drawAxis(
-  ctx: CanvasRenderingContext2D,
+  tw: Two,
   v_axis_from_right: number,
   h_axis_from_bottom: number,
   margin: number
 ): [number, number] {
-  const width = ctx.canvas.width;
-  const height = ctx.canvas.height;
+  const width = tw.width;
+  const height = tw.height;
   const gray = "#ababab";
 
   const origin_x = width - v_axis_from_right - margin;
   const origin_y = height - h_axis_from_bottom - margin;
+  axis_origin_x = origin_x;
+  axis_origin_y = origin_y;
 
-  ctx.strokeStyle = gray;
-  ctx.lineWidth = 2;
-  // Draw vertical axis
-  ctx.beginPath();
-  ctx.moveTo(width - v_axis_from_right - margin, height - margin);
-  ctx.lineTo(width - v_axis_from_right - margin, margin);
-  ctx.stroke();
-  // Draw horizontal axis
-  ctx.beginPath();
-  ctx.moveTo(margin, height - h_axis_from_bottom - margin);
-  ctx.lineTo(width - margin, height - h_axis_from_bottom - margin);
-  ctx.stroke();
-  // draw axis heads
-  //vertical axis
-  ctx.fillStyle = gray;
-  ctx.beginPath();
-  ctx.moveTo(width - v_axis_from_right - margin, margin);
-  ctx.lineTo(width - v_axis_from_right - margin - 5, margin + 10);
-  ctx.lineTo(width - v_axis_from_right - margin + 5, margin + 10);
-  ctx.lineTo(width - v_axis_from_right - margin, margin);
-  ctx.fill();
+  const v_axis = tw.makeArrow(origin_x, height - margin, origin_x, margin, 5);
+  v_axis.stroke = gray;
+  v_axis.linewidth = 2;
 
-  //horizontal axis
-  ctx.beginPath();
-  ctx.moveTo(margin, height - h_axis_from_bottom - margin);
-  ctx.lineTo(margin + 10, height - h_axis_from_bottom - margin - 5);
-  ctx.lineTo(margin + 10, height - h_axis_from_bottom - margin + 5);
-  ctx.lineTo(margin, height - h_axis_from_bottom - margin);
-  ctx.fill();
+  const h_axis = tw.makeArrow(width - margin, origin_y, margin, origin_y, 5);
+  h_axis.stroke = gray;
+  h_axis.linewidth = 2;
 
-  // Draw origin
-  ctx.fillStyle = "black";
-  ctx.beginPath();
-  ctx.arc(origin_x, origin_y, 3, 0, 2 * Math.PI);
-  ctx.fill();
-  //show (0,0) on origin
-  ctx.font = "bold 12px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText(
+  const origin = tw.makeCircle(origin_x, origin_y, 3);
+  origin.fill = "black";
+
+  const origin_text = tw.makeText(
     "(0,0)",
     width - v_axis_from_right - margin / 2,
-    height - h_axis_from_bottom - margin / 2,
-    margin * 2
+    height - h_axis_from_bottom - margin / 2
   );
+  origin_text.size = 12;
 
-  // Draw axis labels
-  ctx.font = "12px Arial";
-  // Vertical axis label
+  const v_axis_text = tw.makeText("回転軸", width - margin + 5, height / 2);
+  v_axis_text.size = 12;
 
-  ctx.fillText("回転軸", width - margin + 5, height / 2, margin);
-  // Horizontal axis label
-  ctx.fillText(
+  const h_axis_text = tw.makeText(
     "半径方向",
     width / 2,
     height - h_axis_from_bottom - margin + 15
   );
+  h_axis_text.size = 12;
 
   return [origin_x, origin_y];
 }
 
 function drawStock(
-  ctx: CanvasRenderingContext2D,
+  tw: Two,
   stock_radius: number,
   stock_height: number,
   origin_x: number,
   origin_y: number,
   scale = 1
 ) {
-  const width = ctx.canvas.width;
-  const height = ctx.canvas.height;
   const gray = "#e0e0e0ab";
 
-  ctx.strokeStyle = "black";
-  ctx.fillStyle = gray;
-  ctx.lineWidth = 0.3;
-  // Draw stock area as a rectangle
-  ctx.fillRect(
-    origin_x - stock_radius * scale,
-    origin_y - stock_height * scale,
+  const stock = tw.makeRectangle(
+    origin_x - (stock_radius * scale) / 2,
+    origin_y - (stock_height * scale) / 2,
     stock_radius * scale,
     stock_height * scale
   );
-  // Draw stock outline
-  ctx.beginPath();
-  ctx.rect(
-    origin_x - stock_radius * scale,
-    origin_y - stock_height * scale,
-    stock_radius * scale,
-    stock_height * scale
-  );
-  ctx.stroke();
-
-  // Draw size labels next to axis
-  ctx.font = "12px Arial";
-  ctx.fillStyle = "black";
-  ctx.textAlign = "center";
-  // Horizontal size label
-  ctx.fillText(
-    `${stock_radius}`,
-    origin_x - stock_radius * scale,
-    origin_y + 15
-  );
-  // Vertical size label
-  ctx.textAlign = "left";
-  ctx.fillText(
-    `${stock_height}`,
-    origin_x + 5,
-    origin_y - stock_height * scale
-  );
+  stock.fill = gray;
+  stock.stroke = "black";
+  stock.linewidth = 0.3;
 }
 
 function draw_line_points(
-  ctx: CanvasRenderingContext2D,
+  tw: Two,
   points: Vector2[],
   origin_x: number,
   origin_y: number,
   scale = 1
 ) {
-  ctx.strokeStyle = "red";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(-points[0].x * scale + origin_x, -points[0].y * scale + origin_y);
-  for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(
-      -points[i].x * scale + origin_x,
-      -points[i].y * scale + origin_y
+  const red = "#ff0000";
+  const gray = "#ababab";
+
+  const line = tw.makePath(
+    points.map(
+      (p) => new Two.Anchor(-p.x * scale + origin_x, -p.y * scale + origin_y)
+    )
+  );
+  line.stroke = red;
+  line.linewidth = 2;
+  line.fill = "none";
+  line.closed = false;
+
+  point_objects.splice(0, point_objects.length); //clear
+  points.forEach((p, index) => {
+    const point = tw.makeCircle(
+      -p.x * scale + origin_x,
+      -p.y * scale + origin_y,
+      4
     );
-  }
-  ctx.stroke();
-  //point circles
-  ctx.fillStyle = "red";
-  for (let i = 0; i < points.length; i++) {
-    ctx.beginPath();
-    ctx.arc(
-      -points[i].x * scale + origin_x,
-      -points[i].y * scale + origin_y,
-      4,
-      0,
-      2 * Math.PI
+    point.fill = red;
+    point.linewidth = 0.5;
+    point_objects.push(point);
+
+    const text = tw.makeText(
+      `${index + 1}`,
+      10 - p.x * scale + origin_x,
+      -p.y * scale + origin_y
     );
-    ctx.fill();
-  }
+    text.size = 12;
+  });
 }
 
-function draw_line_info(ctx: CanvasRenderingContext2D, points: Vector2[]) {
-  ctx.font = "12px Arial";
-  ctx.fillStyle = "black";
-  ctx.textAlign = "left";
-  // number points
-  ctx.fillText(`N = ${points.length}`, 20, 20);
-  ctx.fillText(`Name: ${Param.selectedSection.value?.name}`, 20, 40);
-  // control annotation
-  ctx.textAlign = "center";
-  ctx.fillText(
+function draw_line_info(tw: Two, points: Vector2[]) {
+  const text_param = {
+    size: 12,
+    fill: "black",
+    family: "Arial",
+    alignment: "left",
+  };
+  tw.makeText(`N = ${points.length}`, 20, 20, text_param);
+  tw.makeText(`Name: ${Param.selectedSection.value?.name}`, 20, 40, text_param);
+  tw.makeText(
     "左クリックで点を移動、右クリックで点を追加・削除",
-    ctx.canvas.width / 2,
-    15
-  );
+    tw.width / 2,
+    15,
+    text_param
+  ).alignment = "center";
 }
 
 function setup_initial_points() {
@@ -310,8 +260,8 @@ function convert_MouseXY_to_pointxy(
   offsetX: number,
   offsetY: number
 ): Vector2 {
-  let x = (origin_x - offsetX) / scale_factor;
-  let y = (origin_y - offsetY) / scale_factor;
+  let x = (axis_origin_x - offsetX) / scale_factor;
+  let y = (axis_origin_y - offsetY) / scale_factor;
 
   if (stock.height && stock.radius) {
     if (x < 0) x = 0;
@@ -332,8 +282,8 @@ function convert_MouseXY_to_pointxy(
 
 function convert_pointxy_to_canvasXY(point: Vector2): Vector2 {
   return new Vector2(
-    -point.x * scale_factor + origin_x,
-    -point.y * scale_factor + origin_y
+    -point.x * scale_factor + axis_origin_x,
+    -point.y * scale_factor + axis_origin_y
   );
 }
 
@@ -355,51 +305,57 @@ let selected_point_index = -1;
 let is_dragging = false;
 const drag_threshold = 10;
 
-function draw_seleced_point_info(ctx: CanvasRenderingContext2D) {
+function draw_seleced_point_info(tw: Two, selected_point_index: number) {
   const margin = 5;
-  if (is_dragging && selected_point_index >= 0) {
+  if (selected_point_index >= 0) {
     const point = points.value[selected_point_index];
     const point_on_canvas = convert_pointxy_to_canvasXY(point);
-    ctx.font = "12px Arial";
-    ctx.fillStyle = "black";
-    ctx.textAlign = "left";
+    const origin_x = 0;
+    const origin_y = 0;
 
-    ctx.fillText(
-      `${selected_point_index + 1}`,
-      point_on_canvas.x + margin,
+    const text_param = {
+      size: 12,
+      fill: "black",
+      family: "Arial",
+      alignment: "left",
+    };
+
+    // Horizontal line
+    const h_line = tw.makeLine(
+      point_on_canvas.x,
+      point_on_canvas.y,
+      axis_origin_x,
       point_on_canvas.y
     );
-    //position line
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 0.5;
-    //horizontal line
-    ctx.beginPath();
-    ctx.setLineDash([2, 2]);
-    ctx.moveTo(point_on_canvas.x, point_on_canvas.y);
-    ctx.lineTo(origin_x, point_on_canvas.y);
-    ctx.stroke();
-    //vertical line
-    ctx.beginPath();
-    ctx.moveTo(point_on_canvas.x, point_on_canvas.y);
-    ctx.lineTo(point_on_canvas.x, origin_y);
-    ctx.stroke();
+    h_line.stroke = "black";
+    h_line.linewidth = 0.5;
+    h_line.dashes = [2, 2];
 
-    ctx.setLineDash([]);
-    //position label on axis
-    ctx.font = "10px Arial";
-    ctx.fillStyle = "black";
-    ctx.textAlign = "left";
-    ctx.fillText(
-      `${point.y.toFixed(1)}`,
-      origin_x + margin,
-      point_on_canvas.y + margin
+    // Vertical line
+    const v_line = tw.makeLine(
+      point_on_canvas.x,
+      point_on_canvas.y,
+      point_on_canvas.x,
+      axis_origin_y
     );
-    ctx.textAlign = "center";
-    ctx.fillText(
+    v_line.stroke = "black";
+    v_line.linewidth = 0.5;
+    v_line.dashes = [2, 2];
+
+    // Position label on axis
+    tw.makeText(
+      `${point.y.toFixed(1)}`,
+      axis_origin_x + margin,
+      point_on_canvas.y + margin,
+      text_param
+    );
+
+    tw.makeText(
       `${point.x.toFixed(1)}`,
       point_on_canvas.x + margin,
-      origin_y + 10 + margin
-    );
+      axis_origin_y + 10 + margin,
+      text_param
+    ).alignment = "center";
   }
 }
 
@@ -510,47 +466,78 @@ function fix_out_of_range(): void {
   }
 }
 
-function handleMouseDown(event: MouseEvent) {
-  const { offsetX, offsetY } = event;
-  const x = (origin_x - offsetX) / scale_factor;
-  const y = (origin_y - offsetY) / scale_factor;
-  const click_point = new Vector2(x, y);
+//立ち壁（Y同一点）があるかどうかを確認する
+function check_wall(): boolean {
+  if (points.value.length < 3) return false;
+
+  const wall = points.value.some((point, index) => {
+    if (index === 0 || index === points.value.length - 1) return false;
+    if (point.y === points.value[index - 1].y) {
+      return true;
+    }
+    return false;
+  });
+  return wall;
+}
+
+function handleMouseDown(event: PointerEvent) {
+  const X = event.clientX;
+  const Y = event.clientY;
 
   const device_drag_threshold = drag_threshold / scale_factor;
+  let near_point_index = -1;
 
-  const near_point_index = points.value.findIndex(
-    (point, index) => point.distanceTo(click_point) < device_drag_threshold
-  );
+  const canvas_rect = canvasref.value?.getBoundingClientRect();
+  if (!canvas_rect) return;
+
+  for (let i = 0; i < points.value.length; i++) {
+    const shape = point_objects[i];
+    const rect = shape.getBoundingClientRect(false);
+    if (
+      rect.left + canvas_rect.x <= X &&
+      X <= rect.right + canvas_rect.x &&
+      rect.top + canvas_rect.y <= Y &&
+      Y <= rect.bottom + canvas_rect.y
+    ) {
+      near_point_index = i;
+      is_dragging = true;
+      break;
+    }
+  }
 
   if (near_point_index >= 0) {
     selected_point_index = near_point_index;
     is_dragging = true;
+    current_point_copy.set(
+      points.value[selected_point_index].x,
+      points.value[selected_point_index].y
+    );
   } else {
     selected_point_index = -1;
     is_dragging = false;
+    current_point_copy.set(-1, -1);
   }
 }
 
-function handleMouseMove(event: MouseEvent) {
+function handleMouseMove(event: PointerEvent) {
   // Implement logic to move points when the mouse is dragged
   if (is_dragging && selected_point_index >= 0) {
-    const { offsetX, offsetY } = event;
+    const canvas_rect = canvasref.value?.getBoundingClientRect();
+    const X = event.clientX - canvas_rect!.x;
+    const Y = event.clientY - canvas_rect!.y;
 
     points.value[selected_point_index] = round_point_decimal_point(
-      convert_MouseXY_to_pointxy(selected_point_index, offsetX, offsetY)
+      convert_MouseXY_to_pointxy(selected_point_index, X, Y)
     );
 
-    if (canvasref.value) {
-      const ctx = canvasref.value.getContext("2d");
-      if (ctx) {
-        drawInit(ctx);
-        draw_seleced_point_info(ctx);
-      }
+    if (two) {
+      drawInit();
+      draw_seleced_point_info(two, selected_point_index);
     }
   }
 }
 
-function handleMouseUp(event: MouseEvent) {
+function handleMouseUp(event: PointerEvent) {
   if (event.button === 0) {
     //left click
     if (is_dragging) {
@@ -559,14 +546,21 @@ function handleMouseUp(event: MouseEvent) {
       if (is_intersect) {
         toast.warning("自己交差しています。自己交差を解消します。");
         points.value.sort((a, b) => a.y - b.y);
-      } else {
-        const overhang = check_overhang();
-        if (overhang) {
-          toast.warning(
-            "オーバーハングしています。オーバーハングを解消します。"
-          );
-          points.value.sort((a, b) => a.y - b.y);
-        }
+      }
+
+      const overhang = check_overhang();
+      if (overhang) {
+        toast.warning("オーバーハングしています。オーバーハングを解消します。");
+        points.value.sort((a, b) => a.y - b.y);
+      }
+
+      const wall = check_wall();
+      if (wall) {
+        toast.warning("立壁形状があります。元に戻します。"); //v0.1.0
+        points.value[selected_point_index].set(
+          current_point_copy.x,
+          current_point_copy.y
+        );
       }
     }
   } else if (event.button === 2) {
@@ -582,39 +576,56 @@ function handleMouseUp(event: MouseEvent) {
       selected_point_index = -1;
     } else if (!is_dragging) {
       //add point
-      const { offsetX, offsetY } = event;
-      //search nearest point
-      const x = (origin_x - offsetX) / scale_factor;
-      const y = (origin_y - offsetY) / scale_factor;
-
-      if (stock.height && stock.radius) {
-        if (x < 0 || x > stock.radius || y < 0 || y > stock.height) {
-          is_dragging = false;
-          selected_point_index = -1;
-          return;
-        }
-      }
-
-      const click_point = round_point_decimal_point(new Vector2(x, y));
-      points.value.sort((a, b) => a.y - b.y);
-      const near_point_index = points.value.findLastIndex(
-        (point, index) => point.y <= click_point.y
-      );
-
-      if (near_point_index >= 0) {
-        points.value.splice(near_point_index + 1, 0, click_point);
-      }
+      addPoint(event);
     }
   }
 
   is_dragging = false;
   selected_point_index = -1;
+  current_point_copy.set(-1, -1);
 
-  if (canvasref.value) {
-    const ctx = canvasref.value.getContext("2d");
-    if (ctx) {
-      drawInit(ctx);
-    }
+  drawInit();
+}
+
+function handlecancel(event: PointerEvent) {
+  console.log("pointercancel event");
+  is_dragging = false;
+  selected_point_index = -1;
+  points.value[selected_point_index].set(
+    current_point_copy.x,
+    current_point_copy.y
+  );
+  current_point_copy.set(-1, -1);
+}
+
+function addPoint(event: PointerEvent) {
+  const canvas_rect = canvasref.value?.getBoundingClientRect();
+  const X = event.clientX - canvas_rect!.x;
+  const Y = event.clientY - canvas_rect!.y;
+  //search nearest point
+  const x = (axis_origin_x - X) / scale_factor;
+  const y = (axis_origin_y - Y) / scale_factor;
+
+  if (!stock.height || !stock.radius) return;
+
+  if (x < 0 || x > stock.radius || y < 0 || y > stock.height) {
+    //範囲外の点は追加しない
+    console.log("out of range", x, y, stock.radius, stock.height);
+    is_dragging = false;
+    selected_point_index = -1;
+    return;
+  }
+
+  const click_point = round_point_decimal_point(new Vector2(x, y));
+  console.log("clock", click_point);
+
+  points.value.sort((a, b) => a.y - b.y);
+  const near_point_index = points.value.findLastIndex(
+    (point, index) => point.y <= click_point.y
+  );
+
+  if (near_point_index >= 0) {
+    points.value.splice(near_point_index + 1, 0, click_point);
   }
 }
 
@@ -638,6 +649,11 @@ function SaveSection() {
     toast.error("開始点と終了点が範囲外です。範囲内に修正してください。");
     return;
   }
+
+  if (check_wall()) {
+    toast.error("立ち壁形状があります。立ち壁を解消してください。");
+    return;
+  }
   const path = new NURBSPath(points.value);
   if (Param.selectedSection.value) {
     Param.selectedSection.value.path = path;
@@ -648,13 +664,8 @@ function SaveSection() {
 watch(
   () => [stock.radius, stock.height],
   () => {
-    if (canvasref.value) {
-      const ctx = canvasref.value.getContext("2d");
-      if (ctx) {
-        fix_out_of_range();
-        drawInit(ctx);
-      }
-    }
+    fix_out_of_range();
+    drawInit();
   }
 );
 
@@ -662,12 +673,7 @@ watch(
   () => Param.selectedSection.value,
   () => {
     setup_initial_points();
-    if (canvasref.value) {
-      const ctx = canvasref.value.getContext("2d");
-      if (ctx) {
-        drawInit(ctx);
-      }
-    }
+    drawInit();
   }
 );
 </script>

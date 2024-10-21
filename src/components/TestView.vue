@@ -146,7 +146,7 @@ import { ReactiveParameters } from "./CAM/Parameters";
 import { CLData } from "./CAM/MainProcessor/CL";
 import { Simulator } from "./Simulation/Simulator";
 import { isReturnStatement } from "typescript";
-import { isArray } from "@tresjs/core/dist/src/utils";
+//import { isArray } from "@tresjs/core/dist/src/utils";
 
 const Param = inject(
   "Param",
