@@ -13,7 +13,7 @@
     "sourceMap": true,
     "baseUrl": ".",
     "resolveJsonModule": true,
-    "types": ["webpack-env"],
+    "types": ["vite/client", "webpack-env"],
     "paths": {
       "@/*": ["src/*"]
     },

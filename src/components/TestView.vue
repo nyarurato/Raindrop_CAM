@@ -96,9 +96,16 @@
     <v-row v-if="show_simulator_result_button">
       <v-col>
         <v-row class="justify-center">
-          <v-btn @click="createVoxelModel(simulator.voxel_data)"
-            >シミュレーション結果描画</v-btn
-          >
+          <v-btn @click="startVoxelModelCalculation" :disabled="is_calculating">
+            <template v-slot:prepend v-if="is_calculating">
+              <v-progress-circular
+                indeterminate
+                color="primary"
+                size="20"
+              ></v-progress-circular>
+            </template>
+            シミュレーション結果描画
+          </v-btn>
         </v-row>
         <v-row>
           <v-spacer></v-spacer>
@@ -145,8 +152,13 @@ import { ReactiveParameters } from "./CAM/Parameters";
 
 import { CLData } from "./CAM/MainProcessor/CL";
 import { Simulator } from "./Simulation/Simulator";
-import { isReturnStatement } from "typescript";
+import {
+  isReadonlyKeywordOrPlusOrMinusToken,
+  isReturnStatement,
+} from "typescript";
 //import { isArray } from "@tresjs/core/dist/src/utils";
+
+import VoxelWorker from "./Simulation/VoxelWorker?worker";
 
 const Param = inject(
   "Param",
@@ -206,6 +218,8 @@ const show_remain_voxel = ref(true);
 
 const show_simulator_result_button = ref(simulator.is_exist_voxel);
 const is_calculating = ref(false);
+
+let worker = new VoxelWorker();
 
 function createSectionPlanes(): THREE.PlaneGeometry[] {
   const section_planes = Param.sections.value.map((section, index, array) => {
@@ -276,10 +290,36 @@ function createSectionPlanesPaths(): Array<THREE.Group> {
   return section_paths;
 }
 
-async function createVoxelModel(data: Array<Array<Array<boolean>>>) {
-  console.log("createVoxelModel");
+function startVoxelModelCalculation() {
   is_calculating.value = true;
+
+  if (worker) worker.terminate();
+  worker = new VoxelWorker();
+
+  worker.onmessage = (e) => {
+    console.log(
+      "worker end. array size(remain, removed):",
+      e.data.remain.length,
+      e.data.removed.length
+    );
+    worker.terminate();
+    showVoxelModel(e.data.remain, e.data.removed);
+    is_calculating.value = false;
+  };
+  worker.postMessage({
+    voxel_flag: simulator.voxel_data,
+    show_remain_voxel: show_remain_voxel.value,
+    show_removed_voxel: show_removed_voxel.value,
+    radius: Param.stocks.value[0].radius,
+  });
+}
+
+function showVoxelModel(
+  remain_voxel_matrix: Array<THREE.Matrix4Tuple>,
+  removed_voxel_matrix: Array<THREE.Matrix4Tuple>
+) {
   const geometry = new THREE.BoxGeometry(1, 1, 1);
+
   const material = new THREE.MeshStandardMaterial({
     color: 0xff0000,
     //transparent: true,
@@ -292,12 +332,16 @@ async function createVoxelModel(data: Array<Array<Array<boolean>>>) {
     opacity: 0.5,
     //wireframe: true,
   });
-  const all_item = data.length * data[0].length * data[0][0].length;
-  const voxelGeometry = new THREE.InstancedMesh(geometry, material, all_item);
+
+  const voxelGeometry = new THREE.InstancedMesh(
+    geometry,
+    material,
+    remain_voxel_matrix.length
+  );
   const voxelGeometry_erase = new THREE.InstancedMesh(
     geometry,
     material_erase,
-    all_item
+    removed_voxel_matrix.length
   );
 
   const start_position = new THREE.Vector3(0, 0, 0);
@@ -309,52 +353,18 @@ async function createVoxelModel(data: Array<Array<Array<boolean>>>) {
   if (show_removed_voxel.value) {
     voxel_group.add(voxelGeometry_erase);
   }
-  let remain_voxel_index = 0;
-  let removed_voxel_index = 0;
 
-  //位置オフセット。ボクセルの中心を原点にするためのオフセット
-  const pos_offset = new THREE.Vector3(
-    (-data.length * voxel_size) / 2,
-    (-data[0].length * voxel_size) / 2,
-    0
-  );
+  remain_voxel_matrix.forEach((matrix, index) => {
+    voxelGeometry.setMatrixAt(index, new THREE.Matrix4().fromArray(matrix));
+  });
 
-  for (let i = 0; i < data.length; i++) {
-    for (let j = 0; j < data[i].length; j++) {
-      for (let k = 0; k < data[i][j].length; k++) {
-        const voxel = new THREE.Object3D();
-        voxel.position.set(
-          start_position.x + i * voxel_size + pos_offset.x,
-          start_position.z + k * voxel_size + pos_offset.z, //3Dの座標系はyが高さ方向のため、zと入れ替え
-          start_position.y + j * voxel_size + pos_offset.y
-        );
-        voxel.updateMatrix();
-        if (data[i][j][k]) {
-          if (!show_remain_voxel.value) {
-            //残っているボクセルを表示しない場合はスキップ
-            continue;
-          }
-          voxelGeometry.setMatrixAt(remain_voxel_index++, voxel.matrix);
-        } else {
-          if (!show_removed_voxel.value) {
-            //削除されたボクセルを表示しない場合はスキップ
-            continue;
-          }
-          //stock範囲内か確認
-          if (
-            (i * voxel_size + pos_offset.x) ** 2 +
-              (j * voxel_size + pos_offset.y) ** 2 <
-            Param.stocks.value[0].radius ** 2
-          ) {
-            voxelGeometry_erase.setMatrixAt(
-              removed_voxel_index++,
-              voxel.matrix
-            );
-          }
-        }
-      }
-    }
-  }
+  removed_voxel_matrix.forEach((matrix, index) => {
+    voxelGeometry_erase.setMatrixAt(
+      index,
+      new THREE.Matrix4().fromArray(matrix)
+    );
+  });
+
   show_voxel.value = true;
   is_calculating.value = false;
   is_checked_stock.value = false;
@@ -374,6 +384,10 @@ watch(
     );
   }
 );
+
+onUnmounted(() => {
+  if (worker) worker.terminate();
+});
 </script>
 
 <style scoped>
